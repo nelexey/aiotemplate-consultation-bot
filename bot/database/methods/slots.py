@@ -39,4 +39,19 @@ def get_all_slots(from_date: datetime = None) -> List[TimeSlot]:
     if from_date:
         query = query.filter(TimeSlot.datetime >= from_date)
     
-    return query.order_by(TimeSlot.datetime).all() 
+    return query.order_by(TimeSlot.datetime).all()
+
+def get_slot_by_id(slot_id: int) -> Optional[TimeSlot]:
+    session = Database().session
+    return session.query(TimeSlot).filter(TimeSlot.id == slot_id).first()
+
+def get_booked_slots(datetime_check: datetime) -> List[TimeSlot]:
+    session = Database().session
+    return session.query(TimeSlot).filter(
+        and_(
+            TimeSlot.datetime >= datetime_check,
+            TimeSlot.datetime < datetime_check + timedelta(hours=1),
+            TimeSlot.is_available == False,
+            TimeSlot.status == 'booked'
+        )
+    ).all() 

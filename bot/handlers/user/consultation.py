@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from datetime import datetime, timedelta
 
-from bot.database.methods.slots import get_available_slots, book_slot
+from bot.database.methods.slots import get_available_slots, book_slot, get_slot_by_id
 from bot.keyboards.inline.consultation import create_slots_keyboard, create_confirm_keyboard
 from bot.database.methods.users import get_user_by_chat_id
 
@@ -41,6 +41,16 @@ async def confirm_booking(callback: CallbackQuery):
         return
         
     if book_slot(slot_id, user.id):
+        slot = get_slot_by_id(slot_id)
+        time_until = slot.datetime - datetime.now()
+        
         await callback.message.edit_text("✅ Вы успешно записались на консультацию!")
+        
+        if time_until <= timedelta(hours=1):
+            minutes_left = int(time_until.total_seconds() / 60)
+            await callback.message.answer(
+                f"⚡️ Ваша консультация начнется через {minutes_left} минут, "
+                f"в {slot.datetime.strftime('%H:%M')}!"
+            )
     else:
         await callback.message.edit_text("❌ Извините, этот слот уже занят.") 

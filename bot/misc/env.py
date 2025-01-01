@@ -12,13 +12,15 @@ class Settings(BaseSettings):
 
     WEB_HOST: str
     WEB_PORT: int
-    WEB_TIMEOUT: int
-    WEB_MAX_CONNECTIONS: int
+    WEB_TIMEOUT: int = 60
+    WEB_MAX_CONNECTIONS: int = 100
 
     WEB_SERVICE_HOST: str
     WEB_SERVICE_PORT: int
 
     WEB_WEBHOOK_PATH: str
+
+    ADMIN_IDS: str  # ID администраторов через запятую
 
     @property
     def database_url(self) -> str:

@@ -1,15 +1,11 @@
-from aiogram import Router, Bot
+from aiogram import Router
 from typing import Tuple
 
 from .commands import commands_router
-# from bot.middlewares.throttling import ThrottlingMiddleware
-
+from .consultation import consultation_router
 
 def register_handlers(up_router: Router, **kwargs) -> Tuple[Router, ...]:
-    routers = (
+    return (
         commands_router,
+        consultation_router,
     )
-
-    # commands_router.message.middleware(ThrottlingMiddleware(rate_limit=10))
-
-    return routers

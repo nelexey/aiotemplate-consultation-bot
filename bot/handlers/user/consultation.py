@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from datetime import datetime, timedelta
 
-from bot.database.methods.slots import get_available_slots, book_slot, get_slot_by_id
+from bot.database.methods.slots import get_available_slots, book_slot, get_slot_by_id, get_user_bookings
 from bot.keyboards.inline.consultation import create_slots_keyboard, create_confirm_keyboard
 from bot.database.methods.users import get_user_by_chat_id
 
@@ -54,3 +54,33 @@ async def confirm_booking(callback: CallbackQuery):
             )
     else:
         await callback.message.edit_text("❌ Извините, этот слот уже занят.") 
+
+@consultation_router.message(Command("my_bookings"))
+async def show_my_bookings(message: Message):
+    user = get_user_by_chat_id(message.from_user.id)
+    if not user:
+        await message.answer("❌ Произошла ошибка. Попробуйте начать сначала с /start")
+        return
+        
+    bookings = get_user_bookings(user.id)
+    if not bookings:
+        await message.answer("У вас нет предстоящих консультаций.")
+        return
+    
+    response = "📅 Ваши предстоящие консультации:\n\n"
+    for booking in bookings:
+        time_until = booking.datetime - datetime.now()
+        hours_left = int(time_until.total_seconds() / 3600)
+        
+        if hours_left < 1:
+            minutes_left = int(time_until.total_seconds() / 60)
+            time_info = f"через {minutes_left} минут"
+        else:
+            time_info = f"через {hours_left} часов"
+            
+        response += (
+            f"🕐 {booking.datetime.strftime('%d.%m.%Y %H:%M')}\n"
+            f"⏳ Начнется {time_info}\n\n"
+        )
+    
+    await message.answer(response) 

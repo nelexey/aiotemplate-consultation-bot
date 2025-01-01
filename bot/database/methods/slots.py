@@ -55,3 +55,13 @@ def get_booked_slots(datetime_check: datetime) -> List[TimeSlot]:
             TimeSlot.status == 'booked'
         )
     ).all() 
+
+def get_user_bookings(user_id: int) -> List[TimeSlot]:
+    session = Database().session
+    return session.query(TimeSlot).filter(
+        and_(
+            TimeSlot.client_id == user_id,
+            TimeSlot.status == 'booked',
+            TimeSlot.datetime >= datetime.now()
+        )
+    ).order_by(TimeSlot.datetime).all() 

@@ -10,7 +10,9 @@ def get_available_slots(from_date: datetime, to_date: datetime) -> List[TimeSlot
     return session.query(TimeSlot).filter(
         and_(
             TimeSlot.datetime.between(from_date, to_date),
-            TimeSlot.is_available == True
+            TimeSlot.is_available == True,
+            TimeSlot.status == 'available',
+            TimeSlot.datetime > datetime.now()
         )
     ).all()
 
@@ -18,7 +20,7 @@ def book_slot(slot_id: int, user_id: int) -> bool:
     session = Database().session
     slot = session.query(TimeSlot).filter(TimeSlot.id == slot_id).first()
     
-    if slot and slot.is_available:
+    if slot and slot.is_available and slot.datetime > datetime.now():
         slot.is_available = False
         slot.client_id = user_id
         slot.status = 'booked'

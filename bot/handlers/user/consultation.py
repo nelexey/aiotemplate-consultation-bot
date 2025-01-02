@@ -2,18 +2,17 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
 from datetime import datetime, timedelta
 
 from bot.database.methods.slots import get_available_slots, book_slot, get_slot_by_id, get_user_bookings, check_user_booking_limit, cancel_booking
 from bot.keyboards.inline.consultation import create_slots_keyboard, create_confirm_keyboard, create_bookings_keyboard, create_booking_details_keyboard
 from bot.database.methods.users import get_user_by_chat_id
 from bot.misc.env import settings
+from bot.middlewares.throttling import AdminMessageThrottlingMiddleware
+from bot.states.consultation import ConsultationStates
 
 consultation_router = Router()
-
-class ConsultationStates(StatesGroup):
-    waiting_for_message = State()
+consultation_router.message.middleware(AdminMessageThrottlingMiddleware(cooldown_minutes=30))
 
 @consultation_router.message(Command("schedule"))
 async def show_schedule(message: Message):

@@ -79,22 +79,34 @@ def check_user_booking_limit(user_id: int) -> bool:
     
     return active_bookings < settings.BOOKING_LIMIT 
 
-async def cancel_booking(slot_id: int) -> bool:
+async def cancel_booking(slot_id: int, bot) -> bool:
     session = Database().session
     try:
         slot = session.query(TimeSlot).filter(TimeSlot.id == slot_id).first()
         if slot and slot.status == 'booked':
-            # Проверяем, отменяется ли бронь более чем за 24 часа
             time_until = slot.datetime - datetime.now()
             if time_until > timedelta(days=1):
+                new_status = 'available'
+                status_text = '🔓 слот снова доступен для записи'
                 slot.is_available = True
-                slot.client_id = None
-                slot.status = 'available'
             else:
+                new_status = 'cancelled'
+                status_text = '❌ слот отменён'
                 slot.is_available = False
-                slot.client_id = None
-                slot.status = 'cancelled'
+            
+            client_username = slot.client.username or 'Без username'
+            client_chat_id = slot.client.chat_id
+            
+            slot.status = new_status
+            slot.client_id = None
             session.commit()
+            
+            await bot.send_message(
+                settings.ADMIN_ID,
+                f"ℹ️ Пользователь @{client_username} отменил консультацию\n"
+                f"📅 Дата: {slot.datetime.strftime('%d.%m.%Y %H:%M')}\n"
+                f"📌 Статус: {status_text}"
+            )
             return True
         return False
     except Exception as e:

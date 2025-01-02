@@ -115,7 +115,7 @@ async def process_booking_cancellation(callback: CallbackQuery):
     booking_id = int(callback.data.split("_")[2])
     user = get_user_by_chat_id(callback.from_user.id)
     
-    if await cancel_booking(booking_id):
+    if await cancel_booking(booking_id, callback.bot):
         bookings = get_user_bookings(user.id)
         if bookings:
             keyboard = await create_bookings_keyboard(bookings, page=1)

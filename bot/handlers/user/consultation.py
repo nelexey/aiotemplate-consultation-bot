@@ -1,6 +1,8 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 from datetime import datetime, timedelta
 
 from bot.database.methods.slots import get_available_slots, book_slot, get_slot_by_id, get_user_bookings, check_user_booking_limit, cancel_booking
@@ -9,6 +11,9 @@ from bot.database.methods.users import get_user_by_chat_id
 from bot.misc.env import settings
 
 consultation_router = Router()
+
+class ConsultationStates(StatesGroup):
+    waiting_for_message = State()
 
 @consultation_router.message(Command("schedule"))
 async def show_schedule(message: Message):
@@ -163,5 +168,62 @@ async def cancel_booking_creation(callback: CallbackQuery):
     
     await callback.message.edit_text(
         "Выберите удобное время для консультации:",
+        reply_markup=keyboard
+    ) 
+
+@consultation_router.callback_query(F.data.startswith("write_admin_"))
+async def process_write_admin(callback: CallbackQuery, state: FSMContext):
+    booking_id = int(callback.data.split("_")[2])
+    slot = get_slot_by_id(booking_id)
+    
+    if not slot:
+        await callback.answer("Консультация не найдена")
+        return
+        
+    await state.update_data(booking_id=booking_id)
+    await state.set_state(ConsultationStates.waiting_for_message)
+    
+    await callback.message.edit_text(
+        "📝 Пожалуйста, напишите ваше сообщение для администратора.\n"
+        "Оно будет отправлено вместе с информацией о вашей консультации."
+    )
+
+@consultation_router.message(StateFilter(ConsultationStates.waiting_for_message))
+async def process_admin_message(message: Message, state: FSMContext):
+    data = await state.get_data()
+    booking_id = data.get("booking_id")
+    slot = get_slot_by_id(booking_id)
+    
+    if not slot:
+        await message.answer("❌ Произошла ошибка. Консультация не найдена.")
+        await state.clear()
+        return
+        
+    user_message = message.text
+    user = message.from_user
+    client_info = f"{user.first_name}"
+    if user.last_name:
+        client_info += f" {user.last_name}"
+    if user.username:
+        client_info += f" (@{user.username})"
+    
+    for admin_id in settings.admin_ids:
+        try:
+            await message.bot.send_message(
+                admin_id,
+                f"💬 Новое сообщение от {client_info}\n"
+                f"📅 Слот: {slot.datetime.strftime('%d.%m.%Y %H:%M')}\n"
+                f"📝 Сообщение:\n{user_message}"
+            )
+        except Exception as e:
+            print(f"Error sending message to admin {admin_id}: {str(e)}")
+    
+    await message.answer("✅ Ваше сообщение отправлено администраторам!")
+    await state.clear()
+    
+    keyboard = await create_booking_details_keyboard(booking_id)
+    await message.answer(
+        f"📅 Консультация {slot.datetime.strftime('%d.%m.%Y %H:%M')}\n"
+        "Выберите действие:",
         reply_markup=keyboard
     ) 

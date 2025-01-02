@@ -29,10 +29,15 @@ async def view_slots(message: Message):
     
     response = "📅 Список всех слотов:\n\n"
     for slot in slots:
-        status = "✅ Занят" if not slot.is_available else "🔓 Свободен"
+        status_map = {
+            'available': '🔓 Свободен',
+            'booked': '✅ Забронирован',
+            'cancelled': '❌ Отменён'
+        }
+        status = status_map.get(slot.status, '❓ Неизвестно')
         slot_info = f"{slot.datetime.strftime('%d.%m.%Y %H:%M')} - {status}"
         
-        if not slot.is_available and slot.client:
+        if slot.status == 'booked' and slot.client:
             slot_info += f"\nЗабронировал: @{slot.client.username or 'Без username'}"
         
         response += f"{slot_info}\n\n"

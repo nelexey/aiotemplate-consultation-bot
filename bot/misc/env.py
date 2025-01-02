@@ -22,6 +22,8 @@ class Settings(BaseSettings):
 
     ADMIN_IDS: str  # ID администраторов через запятую
 
+    BOOKING_LIMIT: int = 3  # Максимальное количество активных бронирований на пользователя
+
     @property
     def database_url(self) -> str:
         return f"postgresql://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"

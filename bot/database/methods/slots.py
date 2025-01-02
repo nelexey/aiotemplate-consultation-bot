@@ -3,6 +3,7 @@ from typing import List, Optional
 from sqlalchemy import and_
 from bot.database.main import Database
 from bot.database.models.slot import TimeSlot
+from bot.misc.env import settings
 
 def get_available_slots(from_date: datetime, to_date: datetime) -> List[TimeSlot]:
     session = Database().session
@@ -65,3 +66,39 @@ def get_user_bookings(user_id: int) -> List[TimeSlot]:
             TimeSlot.datetime >= datetime.now()
         )
     ).order_by(TimeSlot.datetime).all() 
+
+def check_user_booking_limit(user_id: int) -> bool:
+    session = Database().session
+    active_bookings = session.query(TimeSlot).filter(
+        and_(
+            TimeSlot.client_id == user_id,
+            TimeSlot.status == 'booked',
+            TimeSlot.datetime >= datetime.now()
+        )
+    ).count()
+    
+    return active_bookings < settings.BOOKING_LIMIT 
+
+async def cancel_booking(slot_id: int) -> bool:
+    session = Database().session
+    try:
+        slot = session.query(TimeSlot).filter(TimeSlot.id == slot_id).first()
+        if slot and slot.status == 'booked':
+            # Проверяем, отменяется ли бронь более чем за 24 часа
+            time_until = slot.datetime - datetime.now()
+            if time_until > timedelta(days=1):
+                slot.is_available = True
+                slot.client_id = None
+                slot.status = 'available'
+            else:
+                slot.is_available = False
+                slot.client_id = None
+                slot.status = 'cancelled'
+            session.commit()
+            return True
+        return False
+    except Exception as e:
+        session.rollback()
+        return False
+    finally:
+        session.close() 

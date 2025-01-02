@@ -95,3 +95,16 @@ async def process_page(callback: CallbackQuery):
     keyboard = await create_slots_keyboard(available_slots, page=page)
     
     await callback.message.edit_reply_markup(reply_markup=keyboard) 
+
+@consultation_router.callback_query(F.data.startswith("cancel_"))
+async def cancel_booking(callback: CallbackQuery):
+    from_date = datetime.now()
+    to_date = from_date + timedelta(days=14)
+    
+    available_slots = get_available_slots(from_date, to_date)
+    keyboard = await create_slots_keyboard(available_slots, page=1)
+    
+    await callback.message.edit_text(
+        "Выберите удобное время для консультации:",
+        reply_markup=keyboard
+    ) 

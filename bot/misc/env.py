@@ -44,5 +44,15 @@ class Settings(BaseSettings):
     def some_service_url(self) -> str:
         return f"http://{self.WEB_SERVICE_HOST}:{self.WEB_SERVICE_PORT}"
 
+    @property
+    def admin_id(self) -> int:
+        """Returns first admin ID from the list"""
+        return int(self.ADMIN_IDS.split(',')[0])
+
+    @property
+    def admin_ids(self) -> list[int]:
+        """Returns list of all admin IDs"""
+        return [int(admin_id.strip()) for admin_id in self.ADMIN_IDS.split(',')]
+
 
 settings = Settings(_env_file='.env')

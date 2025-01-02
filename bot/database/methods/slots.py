@@ -97,18 +97,21 @@ async def cancel_booking(slot_id: int, bot) -> bool:
                 slot.is_available = False
             
             client_username = slot.client.username or 'Без username'
-            client_chat_id = slot.client.chat_id
             
             slot.status = new_status
             slot.client_id = None
             session.commit()
             
-            await bot.send_message(
-                settings.ADMIN_ID,
-                f"ℹ️ Пользователь @{client_username} отменил консультацию\n"
-                f"📅 Дата: {slot.datetime.strftime('%d.%m.%Y %H:%M')}\n"
-                f"📌 Статус: {status_text}"
-            )
+            try:
+                await bot.send_message(
+                    settings.admin_id,
+                    f"ℹ️ Пользователь @{client_username} отменил консультацию\n"
+                    f"📅 Дата: {slot.datetime.strftime('%d.%m.%Y %H:%M')}\n"
+                    f"📌 Статус: {status_text}"
+                )
+            except Exception as e:
+                print(f"Error sending message to admin: {str(e)}")
+            
             return True
         return False
     except Exception as e:

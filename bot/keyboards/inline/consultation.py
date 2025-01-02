@@ -42,9 +42,14 @@ async def create_bookings_keyboard(bookings: List[TimeSlot], page: int = 1) -> I
     start_idx = (page - 1) * SLOTS_PER_PAGE
     end_idx = start_idx + SLOTS_PER_PAGE
     
+    status_emoji = {
+        'booked': '🕐',
+        'cancelled': '❌'
+    }
+    
     booking_buttons = [
         [InlineKeyboardButton(
-            text=f"🕐 {booking.datetime.strftime('%d.%m.%Y %H:%M')}",
+            text=f"{status_emoji.get(booking.status, '❓')} {booking.datetime.strftime('%d.%m.%Y %H:%M')}",
             callback_data=f"booking_details_{booking.id}"
         )]
         for booking in bookings[start_idx:end_idx]

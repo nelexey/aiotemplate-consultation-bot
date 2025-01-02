@@ -64,7 +64,7 @@ def get_user_bookings(user_id: int) -> List[TimeSlot]:
     return session.query(TimeSlot).filter(
         and_(
             TimeSlot.client_id == user_id,
-            TimeSlot.status == 'booked',
+            TimeSlot.status.in_(['booked', 'cancelled']),
             TimeSlot.datetime >= datetime.now()
         )
     ).order_by(TimeSlot.datetime).all() 
@@ -74,8 +74,8 @@ def check_user_booking_limit(user_id: int) -> bool:
     active_bookings = session.query(TimeSlot).filter(
         and_(
             TimeSlot.client_id == user_id,
-            TimeSlot.status == 'booked',
-            TimeSlot.datetime >= datetime.now()
+            TimeSlot.datetime >= datetime.now(),
+            TimeSlot.status.in_(['booked', 'cancelled'])
         )
     ).count()
     
@@ -91,6 +91,7 @@ async def cancel_booking(slot_id: int, bot) -> bool:
                 new_status = 'available'
                 status_text = '🔓 слот снова доступен для записи'
                 slot.is_available = True
+                slot.client_id = None
             else:
                 new_status = 'cancelled'
                 status_text = '❌ слот отменён'
@@ -99,7 +100,6 @@ async def cancel_booking(slot_id: int, bot) -> bool:
             client_username = slot.client.username or 'Без username'
             
             slot.status = new_status
-            slot.client_id = None
             session.commit()
             
             try:

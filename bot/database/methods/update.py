@@ -1,7 +1,11 @@
+from datetime import datetime
 from sqlalchemy.exc import NoResultFound
 from bot.database.main import Database
 from bot.database.models.user import User
 from typing import Optional
+from bot.database.models.payment import Payment
+
+
 
 def update_user(chat_id: int, username: Optional[str] = None) -> bool:
     """
@@ -34,5 +38,25 @@ def update_user(chat_id: int, username: Optional[str] = None) -> bool:
         # Return False if the user does not exist in the database
         return False
 
+    finally:
+        session.close()
+
+def update_payment_status(payment_id: str, status: str, paid_at: Optional[datetime] = None) -> bool:
+    """Обновление статуса платежа"""
+    session = Database().session
+    try:
+        payment = session.query(Payment).filter_by(payment_id=payment_id).first()
+        if not payment:
+            return False
+            
+        payment.status = status
+        if status == 'succeeded' and paid_at:
+            payment.paid_at = paid_at
+            
+        session.commit()
+        return True
+    except Exception:
+        session.rollback()
+        return False
     finally:
         session.close()

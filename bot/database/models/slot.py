@@ -9,6 +9,7 @@ class TimeSlot(Database.BASE):
     datetime = Column(DateTime, nullable=False)
     is_available = Column(Boolean, default=True)
     client_id = Column(Integer, ForeignKey('users.id'), nullable=True)
-    status = Column(String(50), default='available')  # available, booked, cancelled
+    status = Column(String(50), default='available')  # available, booked, cancelled, pending
     
     client = relationship("User", back_populates="bookings") 
+    payment = relationship("Payment", back_populates="slot")

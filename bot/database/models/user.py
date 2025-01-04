@@ -10,6 +10,5 @@ class User(Database.BASE):
     chat_id = Column(BigInteger, unique=True, nullable=False)
     username = Column(String(255), nullable=True)
     
-    # Добавляем связь с TimeSlot
     bookings = relationship("TimeSlot", back_populates="client")
-
+    payments = relationship("Payment", back_populates="user")

@@ -1,6 +1,8 @@
 from sqlalchemy.exc import NoResultFound
 from bot.database.main import Database
 from bot.database.models.user import User
+from bot.database.models.payment import Payment
+
 
 def delete_user(chat_id: int) -> bool:
     """
@@ -31,5 +33,23 @@ def delete_user(chat_id: int) -> bool:
         # Return False if the user does not exist in the database
         return False
 
+    finally:
+        session.close()
+
+
+def delete_payment(payment_id: str) -> bool:
+    """Удаление платежа"""
+    session = Database().session
+    try:
+        payment = session.query(Payment).filter_by(payment_id=payment_id).first()
+        if not payment:
+            return False
+        
+        session.delete(payment)
+        session.commit()
+        return True
+    except Exception:
+        session.rollback()
+        return False
     finally:
         session.close()

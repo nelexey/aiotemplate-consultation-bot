@@ -1,6 +1,7 @@
 from sqlalchemy.exc import NoResultFound
 from bot.database.main import Database
 from bot.database.models.user import User
+from bot.database.models.payment import Payment
 
 
 def create_user(chat_id: int, username: str) -> None:
@@ -28,3 +29,32 @@ def create_user(chat_id: int, username: str) -> None:
         )
         session.add(new_user)
         session.commit()
+
+
+def create_payment(
+    payment_id: str,
+    amount: float,
+    currency: str,
+    status: str,
+    user_id: int,
+    slot_id: int
+) -> Payment:
+    """Создание записи о платеже"""
+    session = Database().session
+    try:
+        payment = Payment(
+            payment_id=payment_id,
+            amount=amount,
+            currency=currency,
+            status=status,
+            user_id=user_id,
+            slot_id=slot_id
+        )
+        session.add(payment)
+        session.commit()
+        return payment
+    except Exception as e:
+        session.rollback()
+        raise e
+    finally:
+        session.close()

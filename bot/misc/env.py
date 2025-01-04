@@ -24,6 +24,14 @@ class Settings(BaseSettings):
 
     BOOKING_LIMIT: int = 3  # Максимальное количество активных бронирований на пользователя
 
+    # ЮKassa settings
+    YOOKASSA_SHOP_ID: str
+    YOOKASSA_SECRET_KEY: str
+    CONSULTATION_PRICE: float = 1000.0  # Цена консультации в рублях
+    YOOKASSA_RETURN_URL: str
+    YOOKASSA_CURRENCY: str = "RUB"
+
+
     @property
     def database_url(self) -> str:
         return f"postgresql://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
@@ -53,6 +61,17 @@ class Settings(BaseSettings):
     def admin_ids(self) -> list[int]:
         """Returns list of all admin IDs"""
         return [int(admin_id.strip()) for admin_id in self.ADMIN_IDS.split(',')]
+
+    @property   
+    def yookassa_config(self) -> dict:
+        """Конфигурация для ЮKassa"""
+        return {
+            'shop_id': self.YOOKASSA_SHOP_ID,
+            'secret_key': self.YOOKASSA_SECRET_KEY,
+            'price': self.CONSULTATION_PRICE,
+            'currency': self.YOOKASSA_CURRENCY,
+            'return_url': f"{self.YOOKASSA_RETURN_URL}"
+        }
 
 
 settings = Settings(_env_file='.env')

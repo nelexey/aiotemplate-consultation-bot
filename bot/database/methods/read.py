@@ -1,7 +1,9 @@
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.exc import NoResultFound
 from bot.database.main import Database
 from bot.database.models.user import User
+from bot.database.models.payment import Payment
+
 
 def get_user(chat_id: int) -> Optional[User]:
     """
@@ -21,3 +23,30 @@ def get_user(chat_id: int) -> Optional[User]:
     except NoResultFound:
         # Return None if no user is found
         return None
+
+def get_payment_by_id(payment_id: str) -> Optional[Payment]:
+    """Получение платежа по ID"""
+    session = Database().session
+    try:
+        return session.query(Payment).filter_by(payment_id=payment_id).first()
+    finally:
+        session.close()
+
+def get_user_payments(user_id: int) -> List[Payment]:
+    """Получение всех платежей пользователя"""
+    session = Database().session
+    try:
+        return session.query(Payment).filter_by(user_id=user_id).all()
+    finally:
+        session.close()
+
+def get_payment_by_slot(slot_id: int, user_id: int, status: str = None) -> Optional[Payment]:
+    """Получение платежа по ID слота и пользователя"""
+    session = Database().session
+    try:
+        query = session.query(Payment).filter_by(slot_id=slot_id, user_id=user_id)
+        if status:
+            query = query.filter_by(status=status)
+        return query.first()
+    finally:
+        session.close()

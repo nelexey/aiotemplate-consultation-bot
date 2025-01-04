@@ -3,6 +3,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from datetime import datetime, timedelta
+import asyncio
 
 from bot.database.methods.slots import get_available_slots, book_slot, get_slot_by_id, get_user_bookings, check_user_booking_limit, cancel_booking
 from bot.keyboards.inline.consultation import create_slots_keyboard, create_confirm_keyboard, create_bookings_keyboard, create_booking_details_keyboard
@@ -13,6 +14,8 @@ from bot.states.consultation import ConsultationStates
 from bot.services.yookassa import YooKassaService
 from bot.database.methods.create import create_payment
 from bot.keyboards.inline.payment import create_payment_status_keyboard
+from bot.services.payment_checker import check_payment_status_loop
+from bot.database.methods.update import update_slot_status
 
 consultation_router = Router()
 consultation_router.message.middleware(AdminMessageThrottlingMiddleware(cooldown_minutes=30))
@@ -54,18 +57,15 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext):
         )
         return
 
-    # Проверяем, не занят ли слот
     slot = get_slot_by_id(slot_id)
     if not slot or slot.status != 'available':
         await callback.message.edit_text("❌ Извините, этот слот уже занят.")
         return
 
     try:
-        # Создаем платеж в ЮKassa
         yookassa_service = YooKassaService()
         payment_id, payment_url = await yookassa_service.create_payment(user.id, slot_id)
 
-        # Сохраняем информацию о платеже в базе данных
         create_payment(
             payment_id=payment_id,
             amount=float(settings.yookassa_config['price']),
@@ -75,13 +75,11 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext):
             slot_id=slot_id
         )
 
-        # Сохраняем ID платежа в состоянии для последующей проверки
+        update_slot_status(slot_id, 'pending')
+
         await state.set_state(ConsultationStates.waiting_for_payment)
         await state.update_data(payment_id=payment_id, slot_id=slot_id)
 
-        print(payment_url)
-
-        # Отправляем пользователю ссылку на оплату
         keyboard = create_payment_status_keyboard(payment_id, payment_url)
         await callback.message.edit_text(
             "💳 Для подтверждения записи необходимо оплатить консультацию\n\n"
@@ -90,6 +88,13 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext):
             "Нажмите на кнопку ниже, чтобы перейти к оплате:",
             reply_markup=keyboard
         )
+
+        asyncio.create_task(check_payment_status_loop(
+            payment_id=payment_id,
+            slot_id=slot_id,
+            chat_id=callback.message.chat.id,
+            bot=callback.bot
+        ))
 
     except Exception as e:
         print(f"Error creating payment: {str(e)}")
@@ -263,17 +268,14 @@ async def check_payment_status(callback: CallbackQuery, state: FSMContext):
     payment_id = callback.data.split("_")[2]
     
     try:
-        # Получаем информацию о платеже из YooKassa
         yookassa_service = YooKassaService()
         payment_status = await yookassa_service.check_payment_status(payment_id)
         
         if payment_status == "succeeded":
-            # Получаем данные из состояния
             data = await state.get_data()
             slot_id = data.get("slot_id")
             user = get_user_by_chat_id(callback.from_user.id)
             
-            # Бронируем слот
             if book_slot(slot_id, user.id):
                 slot = get_slot_by_id(slot_id)
                 time_until = slot.datetime - datetime.now()
@@ -290,7 +292,6 @@ async def check_payment_status(callback: CallbackQuery, state: FSMContext):
                         f"в {slot.datetime.strftime('%H:%M')}!"
                     )
                 
-                # Очищаем состояние
                 await state.clear()
             else:
                 await callback.message.edit_text(
@@ -328,19 +329,15 @@ async def check_payment_status(callback: CallbackQuery, state: FSMContext):
 @consultation_router.callback_query(F.data == "cancel_payment")
 async def cancel_payment(callback: CallbackQuery, state: FSMContext):
     try:
-        # Получаем данные из состояния
         data = await state.get_data()
         payment_id = data.get("payment_id")
         
         if payment_id:
-            # Отменяем платеж в YooKassa
             yookassa_service = YooKassaService()
             await yookassa_service.cancel_payment(payment_id)
         
-        # Очищаем состояние
         await state.clear()
         
-        # Возвращаем пользователя к выбору времени
         from_date = datetime.now()
         to_date = from_date + timedelta(days=14)
         available_slots = get_available_slots(from_date, to_date)

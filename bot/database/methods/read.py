@@ -3,6 +3,7 @@ from sqlalchemy.exc import NoResultFound
 from bot.database.main import Database
 from bot.database.models.user import User
 from bot.database.models.payment import Payment
+from bot.database.models.slot import TimeSlot
 
 
 def get_user(chat_id: int) -> Optional[User]:
@@ -48,5 +49,13 @@ def get_payment_by_slot(slot_id: int, user_id: int, status: str = None) -> Optio
         if status:
             query = query.filter_by(status=status)
         return query.first()
+    finally:
+        session.close()
+
+def get_slot_by_id(slot_id: int) -> Optional[TimeSlot]:
+    """Получение слота по ID"""
+    session = Database().session
+    try:
+        return session.query(TimeSlot).filter_by(id=slot_id).first()
     finally:
         session.close()

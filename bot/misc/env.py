@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     CURRENCY: str = "RUB"  # Валюта по умолчанию
     CURRENCY_SYMBOL: str = "₽"  # Символ валюты по умолчанию
 
+    YOOKASSA_SHOP_ID: str
+    YOOKASSA_SECRET_KEY: str
+    YOOKASSA_RETURN_URL: str
+    CONSULTATION_PRICE: float
+
+
     @property
     def database_url(self) -> str:
         return f"postgresql://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
@@ -56,6 +62,23 @@ class Settings(BaseSettings):
     def admin_ids(self) -> list[int]:
         """Returns list of all admin IDs"""
         return [int(admin_id.strip()) for admin_id in self.ADMIN_IDS.split(',')]
+    
+    def yookassa_config(self) -> dict:
+        return {
+            'shop_id': self.YOOKASSA_SHOP_ID,
+            'secret_key': self.YOOKASSA_SECRET_KEY
+        }
+    
+    def yookassa_payment_config(self) -> dict:
+        return {
+            'amount': {
+                'value': self.CONSULTATION_PRICE,
+                'currency': self.CURRENCY
+            },
+            'return_url': self.YOOKASSA_RETURN_URL,
+            'confirmation_type': 'redirect',
+            'confirmation_return_url': self.YOOKASSA_RETURN_URL
+        }
 
     @property
     def currency_info(self) -> dict:

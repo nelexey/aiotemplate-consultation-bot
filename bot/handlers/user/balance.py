@@ -41,6 +41,10 @@ async def process_deposit(amount: float, chat_id: int, message_obj):
         await message_obj.answer("Сумма должна быть больше 0")
         return False
 
+    if amount > settings.MAX_DEPOSIT_AMOUNT:
+        await message_obj.answer(f"Максимальная сумма пополнения - {settings.MAX_DEPOSIT_AMOUNT:,.0f} {settings.CURRENCY_SYMBOL}")
+        return False
+
     user = get_user_by_chat_id(chat_id)
     payment = YookassaService().create_payment(
         user_id=user.id,

@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     CURRENCY: str = "RUB"  # Валюта по умолчанию
     CURRENCY_SYMBOL: str = "₽"  # Символ валюты по умолчанию
 
+    MAX_DEPOSIT_AMOUNT: float = 1000000  # Максимальная сумма пополнения баланса
+
     YOOKASSA_SHOP_ID: str
     YOOKASSA_SECRET_KEY: str
     YOOKASSA_RETURN_URL: str

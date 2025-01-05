@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -54,13 +54,20 @@ async def process_deposit(amount: float, chat_id: int, message_obj):
         return_url=settings.YOOKASSA_RETURN_URL,
     )
 
-    text = (f"Для пополнения баланса на сумму {amount} {settings.CURRENCY_SYMBOL} "
-            f"перейдите по ссылке:\n{payment.confirmation.confirmation_url}")
+    text = f"Для пополнения баланса на сумму {amount} {settings.CURRENCY_SYMBOL} нажмите на кнопку ниже:"
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[[
+            InlineKeyboardButton(
+                text="Оплатить",
+                url=payment.confirmation.confirmation_url
+            )
+        ]]
+    )
 
     if isinstance(message_obj, CallbackQuery):
-        await message_obj.message.edit_text(text)
+        await message_obj.message.edit_text(text, reply_markup=keyboard)
     else:
-        await message_obj.answer(text)
+        await message_obj.answer(text, reply_markup=keyboard)
     
     return True
 

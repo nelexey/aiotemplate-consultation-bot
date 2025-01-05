@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, BigInteger, String, Numeric
 from sqlalchemy.orm import relationship
 from bot.database.main import Database
+from bot.misc.env import settings
 
 
 class User(Database.BASE):
@@ -10,6 +11,7 @@ class User(Database.BASE):
     chat_id = Column(BigInteger, unique=True, nullable=False)
     username = Column(String(255), nullable=True)
     balance = Column(Numeric(10, 2), default=0.00, nullable=False)
+    currency = Column(String(3), default=settings.CURRENCY, nullable=False)
     
     # Связи
     bookings = relationship("TimeSlot", back_populates="client")

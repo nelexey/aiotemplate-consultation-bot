@@ -1,6 +1,6 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from datetime import datetime, timedelta
-from bot.database.methods.slots import get_booked_slots
+from bot.database.methods.read import get_booked_slots
 
 async def send_reminder(bot, slot):
     await bot.send_message(

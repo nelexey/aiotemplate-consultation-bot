@@ -24,6 +24,9 @@ class Settings(BaseSettings):
 
     BOOKING_LIMIT: int = 3  # Максимальное количество активных бронирований на пользователя
 
+    CURRENCY: str = "RUB"  # Валюта по умолчанию
+    CURRENCY_SYMBOL: str = "₽"  # Символ валюты по умолчанию
+
     @property
     def database_url(self) -> str:
         return f"postgresql://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
@@ -53,6 +56,13 @@ class Settings(BaseSettings):
     def admin_ids(self) -> list[int]:
         """Returns list of all admin IDs"""
         return [int(admin_id.strip()) for admin_id in self.ADMIN_IDS.split(',')]
+
+    @property
+    def currency_info(self) -> dict:
+        return {
+            'code': self.CURRENCY,
+            'symbol': self.CURRENCY_SYMBOL
+        }
 
 
 settings = Settings(_env_file='.env')

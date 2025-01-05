@@ -3,20 +3,31 @@ from aiogram.types import Message
 from aiogram.filters import Command
 from datetime import datetime
 from bot.filters.is_admin import IsAdmin
-from bot.database.methods.slots import add_slot, get_all_slots
+from bot.database.methods.create import create_slot
+from bot.database.methods.read import get_all_slots
+from bot.misc.env import settings
 
 admin_consultation_router = Router()
 
 @admin_consultation_router.message(Command("add_slot"), IsAdmin())
 async def add_new_slot(message: Message):
     try:
-        _, date_str, time_str = message.text.split()
+        _, date_str, time_str, price = message.text.split()
         slot_datetime = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+        price = float(price)
         
-        new_slot = add_slot(slot_datetime)
-        await message.answer(f"✅ Добавлен новый слот: {slot_datetime.strftime('%d.%m.%Y %H:%M')}")
+        new_slot = create_slot(slot_datetime, price)
+        await message.answer(
+            f"✅ Добавлен новый слот:\n"
+            f"📅 Дата: {slot_datetime.strftime('%d.%m.%Y %H:%M')}\n"
+            f"💰 Цена: {price} {settings.CURRENCY_SYMBOL}"
+        )
     except Exception as e:
-        await message.answer("❌ Ошибка при добавлении слота. Используйте формат: /add_slot YYYY-MM-DD HH:MM")
+        await message.answer(
+            "❌ Ошибка при добавлении слота.\n"
+            "Используйте формат: /add_slot YYYY-MM-DD HH:MM PRICE\n"
+            "Например: /add_slot 2024-03-20 15:00 1500"
+        )
 
 @admin_consultation_router.message(Command("view_slots"), IsAdmin())
 async def view_slots(message: Message):

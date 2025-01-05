@@ -3,6 +3,7 @@ from sqlalchemy.exc import NoResultFound
 from bot.database.main import Database
 from bot.database.models.user import User
 from bot.database.models.slot import TimeSlot
+from bot.database.models.payment import Payment
 from datetime import datetime
 from aiogram import Bot
 from sqlalchemy import and_
@@ -21,6 +22,31 @@ def update_user(chat_id: int, username: Optional[str] = None) -> bool:
         return False
     finally:
         session.close()
+
+def update_payment_status(payment_id: str, status: str, paid_at: Optional[datetime] = None) -> bool:
+    """Updates payment status and paid_at time"""
+    session = Database().session
+    payment = session.query(Payment).filter(Payment.payment_id == payment_id).first()
+    if not payment:
+        return False
+    
+    payment.status = status
+    if paid_at:
+        payment.paid_at = paid_at
+    
+    session.commit()
+    return True
+
+def update_user_balance(user_id: int, new_balance: float) -> bool:
+    """Updates user balance"""
+    session = Database().session
+    user = session.query(User).filter(User.id == user_id).first()
+    if not user:
+        return False
+    
+    user.balance = new_balance
+    session.commit()
+    return True
 
 def book_slot(slot_id: int, user_id: int) -> bool:
     """Updates slot status to booked"""

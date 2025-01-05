@@ -29,7 +29,6 @@ def create_payment(
     currency: str,
     status: str,
     user_id: int,
-    slot_id: int
 ) -> Payment:
     """Creates a new payment record"""
     session = Database().session
@@ -40,7 +39,6 @@ def create_payment(
             currency=currency,
             status=status,
             user_id=user_id,
-            slot_id=slot_id
         )
         session.add(payment)
         session.commit()

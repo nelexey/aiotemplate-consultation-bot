@@ -1,6 +1,7 @@
 from typing import Optional, List
 from datetime import datetime, timedelta
 from sqlalchemy import and_
+from sqlalchemy.orm import joinedload
 from bot.database.main import Database
 from bot.database.models.user import User
 from bot.database.models.payment import Payment
@@ -98,4 +99,11 @@ def get_booked_slots(datetime_check: datetime) -> List[TimeSlot]:
         ).all()
     finally:
         session.close()
+
+def get_payment(payment_id: str) -> Optional[Payment]:
+    """Gets payment by payment ID with user data"""
+    session = Database().session
+    return session.query(Payment).options(
+        joinedload(Payment.user)
+    ).filter(Payment.payment_id == payment_id).first()
 

@@ -4,7 +4,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from bot.database.methods.read import get_user_by_chat_id
+from bot.database.methods.read import get_user_by_chat_id, count_active_payments
 from bot.services.yookassa_service import YookassaService
 from bot.misc.env import settings
 from bot.keyboards.inline.balance import get_balance_keyboard, get_deposit_keyboard
@@ -46,6 +46,15 @@ async def process_deposit(amount: float, chat_id: int, message_obj):
         return False
 
     user = get_user_by_chat_id(chat_id)
+    
+    # Проверяем количество активных платежей
+    active_payments = count_active_payments(user.id)
+    if active_payments >= 3:
+        await message_obj.answer(
+            "У вас уже есть 3 активных платежа. Пожалуйста, завершите или отмените существующие платежи перед созданием нового."
+        )
+        return False
+
     payment = YookassaService().create_payment(
         user_id=user.id,
         amount=amount,

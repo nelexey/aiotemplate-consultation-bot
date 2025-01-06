@@ -100,6 +100,27 @@ def get_booked_slots(datetime_check: datetime) -> List[TimeSlot]:
     finally:
         session.close()
 
+def count_active_payments(user_id: int, minutes: int = 10) -> int:
+    """
+    Подсчитывает количество активных (pending) платежей пользователя
+    
+    Args:
+        user_id: ID пользователя
+        minutes: За сколько последних минут проверять платежи (по умолчанию 10)
+    """
+    session = Database().session
+    try:
+        time_ago = datetime.now() - timedelta(minutes=minutes)
+        return session.query(Payment).filter(
+            and_(
+                Payment.user_id == user_id,
+                Payment.status == 'pending',
+                Payment.created_at >= time_ago
+            )
+        ).count()
+    finally:
+        session.close()
+
 def get_payment(payment_id: str) -> Optional[Payment]:
     """Gets payment by payment ID with user data"""
     session = Database().session

@@ -6,6 +6,7 @@ from bot.misc.env import settings
 from bot.web.server import init_web_server
 from bot.handlers.main import register_all_handlers
 from bot.database.models import register_models
+from bot.services import setup_services
 
 # Configure logging
 logging.basicConfig(
@@ -32,6 +33,10 @@ async def main() -> None:
         main_router = Router()
         await register_all_handlers(main_router, bot=bot)
         dp.include_router(main_router)
+
+        # Initialize services
+        logger.info("Setting up services...")
+        await setup_services(bot)
 
         # Start polling
         logger.info("Starting bot polling...")

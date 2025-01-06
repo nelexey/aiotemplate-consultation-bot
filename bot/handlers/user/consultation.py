@@ -4,12 +4,14 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from datetime import datetime, timedelta
 
-from bot.database.methods.slots import get_available_slots, book_slot, get_slot_by_id, get_user_bookings, check_user_booking_limit, cancel_booking
+from bot.database.methods.read import get_available_slots, get_slot_by_id, get_user_bookings, check_user_booking_limit
+from bot.database.methods.update import book_slot, cancel_booking, release_slot
+from bot.database.methods.read import get_user_by_chat_id
 from bot.keyboards.inline.consultation import create_slots_keyboard, create_confirm_keyboard, create_bookings_keyboard, create_booking_details_keyboard
-from bot.database.methods.users import get_user_by_chat_id
 from bot.misc.env import settings
 from bot.middlewares.throttling import AdminMessageThrottlingMiddleware
 from bot.states.consultation import ConsultationStates
+from bot.services.notifications import notify_admins_booking_cancelled
 
 consultation_router = Router()
 consultation_router.message.middleware(AdminMessageThrottlingMiddleware(cooldown_minutes=30))
@@ -45,7 +47,7 @@ async def confirm_booking(callback: CallbackQuery):
         await callback.message.edit_text("❌ Произошла ошибка. Попробуйте начать сначала с /start")
         return
     
-    if not check_user_booking_limit(user.id):
+    if not check_user_booking_limit(user.id, settings.BOOKING_LIMIT):
         await callback.message.edit_text(
             f"❌ Превышен лимит бронирований. Максимально доступно: {settings.BOOKING_LIMIT} активных записей."
         )
@@ -118,8 +120,21 @@ async def show_booking_details(callback: CallbackQuery):
 async def process_booking_cancellation(callback: CallbackQuery):
     booking_id = int(callback.data.split("_")[2])
     user = get_user_by_chat_id(callback.from_user.id)
+    slot = get_slot_by_id(booking_id)
     
-    if await cancel_booking(booking_id, callback.bot):
+    if not slot:
+        await callback.answer("❌ Бронирование не найдено")
+        return
+        
+    client_info = f"@{user.username}" if user.username else f"ID: {user.chat_id}"
+    time_until = slot.datetime - datetime.now()
+    
+    # Если до консультации больше 24 часов - освобождаем слот
+    success = release_slot(booking_id) if time_until > timedelta(hours=24) else cancel_booking(booking_id)
+    
+    if success:
+        await notify_admins_booking_cancelled(callback.bot, slot.datetime, client_info)
+        
         bookings = get_user_bookings(user.id)
         if bookings:
             keyboard = await create_bookings_keyboard(bookings, page=1)

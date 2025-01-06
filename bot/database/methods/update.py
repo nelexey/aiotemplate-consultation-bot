@@ -1,38 +1,103 @@
+from typing import Optional
 from sqlalchemy.exc import NoResultFound
 from bot.database.main import Database
 from bot.database.models.user import User
-from typing import Optional
+from bot.database.models.slot import TimeSlot
+from bot.database.models.payment import Payment
+from datetime import datetime
+from aiogram import Bot
+from sqlalchemy import and_
+from bot.misc.env import settings
 
 def update_user(chat_id: int, username: Optional[str] = None) -> bool:
-    """
-    Updates the specified fields of a user record in the database by chat_id.
-
-    Args:
-        chat_id (int): The unique identifier for the user from Telegram.
-        username (Optional[str]): The new username to set for the user, if provided.
-
-    Returns:
-        bool: True if the user was found and updated successfully, False if the user was not found.
-
-    This template demonstrates updating user data, with flexibility to modify multiple fields.
-    """
+    """Updates user information"""
     session = Database().session
-
     try:
-        # Locate the user by chat_id
         user = session.query(User).filter(User.chat_id == chat_id).one()
-
-        # Update fields if new values are provided
         if username is not None:
             user.username = username
-
-        # Commit changes
         session.commit()
         return True
-
     except NoResultFound:
-        # Return False if the user does not exist in the database
         return False
+    finally:
+        session.close()
 
+def update_payment_status(payment_id: str, status: str, paid_at: Optional[datetime] = None) -> bool:
+    """Updates payment status and paid_at time"""
+    session = Database().session
+    payment = session.query(Payment).filter(Payment.payment_id == payment_id).first()
+    if not payment:
+        return False
+    
+    payment.status = status
+    if paid_at:
+        payment.paid_at = paid_at
+    
+    session.commit()
+    return True
+
+def update_user_balance(user_id: int, new_balance: float) -> bool:
+    """Updates user balance"""
+    session = Database().session
+    user = session.query(User).filter(User.id == user_id).first()
+    if not user:
+        return False
+    
+    user.balance = new_balance
+    session.commit()
+    return True
+
+def book_slot(slot_id: int, user_id: int) -> bool:
+    """Updates slot status to booked"""
+    session = Database().session
+    try:
+        slot = session.query(TimeSlot).filter(TimeSlot.id == slot_id).first()
+        if slot and slot.is_available and slot.datetime > datetime.now():
+            slot.is_available = False
+            slot.client_id = user_id
+            slot.status = 'booked'
+            session.commit()
+            return True
+        return False
+    finally:
+        session.close()
+
+def cancel_booking(slot_id: int) -> bool:
+    """Cancels a booking"""
+    session = Database().session
+    try:
+        slot = session.query(TimeSlot).filter(TimeSlot.id == slot_id).first()
+        if not slot or slot.status != 'booked':
+            return False
+
+        slot.status = 'cancelled'
+        slot.is_available = True
+        session.commit()
+        return True
+    except Exception as e:
+        session.rollback()
+        print(f"Error cancelling booking: {str(e)}")
+        return False
+    finally:
+        session.close()
+
+def release_slot(slot_id: int) -> bool:
+    """Releases a slot back to available state"""
+    session = Database().session
+    try:
+        slot = session.query(TimeSlot).filter(TimeSlot.id == slot_id).first()
+        if not slot or slot.status != 'booked':
+            return False
+            
+        slot.status = 'available'
+        slot.is_available = True
+        slot.client_id = None
+        session.commit()
+        return True
+    except Exception as e:
+        session.rollback()
+        print(f"Error releasing slot: {str(e)}")
+        return False
     finally:
         session.close()

@@ -17,18 +17,14 @@ def delete_user(chat_id: int) -> bool:
     session = Database().session
 
     try:
-        # Locate the user by chat_id
         user = session.query(User).filter(User.chat_id == chat_id).one()
 
-        # Delete the user from the session
         session.delete(user)
 
-        # Commit changes to persist the deletion
         session.commit()
         return True
 
     except NoResultFound:
-        # Return False if the user does not exist in the database
         return False
 
     finally:

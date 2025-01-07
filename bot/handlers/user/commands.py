@@ -7,11 +7,16 @@ commands_router = Router()
 
 @commands_router.message(Command('start'))
 async def start_command(message: Message):
-    create_user(message.from_user.id, message.from_user.username)
+
+    user = create_user(message.from_user.id, message.from_user.username)
     
-    await message.answer(
-        "👋 Добро пожаловать в бот записи на консультации!\n\n"
-        "Доступные команды:\n"
-        "/schedule - посмотреть доступные слоты для записи\n"
-        "/my_bookings - мои записи на консультации"
-    )
+    if user is None:
+        text = "С возвращением в бот записи на консультации! 👋\n\n"
+    else:
+        text = "👋 Добро пожаловать в бот записи на консультации!\n\n"
+    
+    text += ("Доступные команды:\n"
+            "/schedule - посмотреть доступные слоты для записи\n"
+            "/my_bookings - мои записи на консультации")
+    
+    await message.answer(text)

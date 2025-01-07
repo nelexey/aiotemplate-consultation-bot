@@ -7,9 +7,14 @@ from datetime import datetime
 from bot.misc.env import settings
 
 def create_user(chat_id: int, username: str) -> User:
-    """Creates a new user in the database"""
+    """Creates a new user in the database or returns None if user already exists"""
     session = Database().session
     try:
+        # Check if user already exists
+        existing_user = session.query(User).filter(User.chat_id == chat_id).first()
+        if existing_user:
+            return None
+            
         user = User(
             chat_id=chat_id,
             username=username,

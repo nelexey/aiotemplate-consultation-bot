@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from datetime import datetime, timedelta
 
 from bot.database.methods.read import get_available_slots, get_slot_by_id, get_user_bookings, check_user_booking_limit
-from bot.database.methods.update import book_slot, cancel_booking, release_slot
+from bot.database.methods.update import book_slot, cancel_booking, release_slot, deduct_consultation_fee, refund_consultation_fee
 from bot.database.methods.read import get_user_by_chat_id
 from bot.keyboards.inline.consultation import (
     create_slots_keyboard,
@@ -64,10 +64,31 @@ async def confirm_booking(callback: CallbackQuery):
         await callback.message.edit_text("❌ Произошла ошибка. Попробуйте начать сначала с /start")
         return
     
+    slot = get_slot_by_id(slot_id)
+    if not slot:
+        await callback.message.edit_text("❌ Слот не найден.")
+        return
+    
+    # Check if user has enough balance
+    if user.balance < slot.price:
+        from bot.keyboards.inline.balance import get_balance_keyboard
+        keyboard = get_balance_keyboard()
+        await callback.message.edit_text(
+            f"❌ Недостаточно средств на балансе.\n"
+            f"Стоимость консультации: {slot.price} {settings.CURRENCY_SYMBOL}\n"
+            f"Ваш баланс: {user.balance} {settings.CURRENCY_SYMBOL}",
+            reply_markup=keyboard
+        )
+        return
+    
     if not check_user_booking_limit(user.id, settings.BOOKING_LIMIT):
         await callback.message.edit_text(
             f"❌ Превышен лимит бронирований. Максимально доступно: {settings.BOOKING_LIMIT} активных записей."
         )
+        return
+    
+    if not deduct_consultation_fee(user.id, float(slot.price)):
+        await callback.message.edit_text("❌ Ошибка при списании средств. Попробуйте позже.")
         return
         
     if book_slot(slot_id, user.id):
@@ -76,7 +97,8 @@ async def confirm_booking(callback: CallbackQuery):
         
         keyboard = get_success_booking_keyboard()
         await callback.message.edit_text(
-            "✅ Вы успешно записались на консультацию!",
+            f"✅ Вы успешно записались на консультацию!\n"
+            f"💰 С баланса списано: {slot.price} {settings.CURRENCY_SYMBOL}",
             reply_markup=keyboard
         )
         
@@ -87,6 +109,7 @@ async def confirm_booking(callback: CallbackQuery):
                 f"в {slot.datetime.strftime('%H:%M')}!"
             )
     else:
+        refund_consultation_fee(user.id, float(slot.price))
         await callback.message.edit_text("❌ Извините, этот слот уже занят.")
 
 @consultation_router.message(Command("my_bookings"))
@@ -159,23 +182,31 @@ async def process_booking_cancellation(callback: CallbackQuery):
     client_info = f"@{user.username}" if user.username else f"ID: {user.chat_id}"
     time_until = slot.datetime - datetime.now()
     
-    # Если до консультации больше 24 часов - освобождаем слот
-    success = release_slot(booking_id) if time_until > timedelta(hours=24) else cancel_booking(booking_id)
+    # Если до консультации больше 24 часов - возвращаем полную стоимость
+    should_refund = time_until > timedelta(hours=24)
+    success = release_slot(booking_id) if should_refund else cancel_booking(booking_id)
     
     if success:
+        refund_amount = float(slot.price) if should_refund else 0
+        if refund_amount > 0:
+            refund_consultation_fee(user.id, refund_amount)
+            refund_message = f"\n💰 Возвращено на баланс: {refund_amount} {settings.CURRENCY_SYMBOL}"
+        else:
+            refund_message = "\n❗️ При отмене менее чем за 24 часа стоимость не возвращается"
+        
         await notify_admins_booking_cancelled(callback.bot, slot.datetime, client_info)
         
         bookings = get_user_bookings(user.id)
         if bookings:
             keyboard = await create_bookings_keyboard(bookings, page=1)
             await callback.message.edit_text(
-                f"✅ Бронирование отменено\n\n"
+                f"✅ Бронирование отменено{refund_message}\n\n"
                 f"📅 Ваши предстоящие консультации ({len(bookings)}/{settings.BOOKING_LIMIT}):",
                 reply_markup=keyboard
             )
         else:
             await callback.message.edit_text(
-                "✅ Бронирование отменено\n\n"
+                f"✅ Бронирование отменено{refund_message}\n\n"
                 f"У вас нет предстоящих консультаций.\n"
                 f"Доступно записей: {settings.BOOKING_LIMIT}"
             )

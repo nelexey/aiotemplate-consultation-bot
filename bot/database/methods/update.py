@@ -101,3 +101,39 @@ def release_slot(slot_id: int) -> bool:
         return False
     finally:
         session.close()
+
+def deduct_consultation_fee(user_id: int, amount: float) -> bool:
+    """Deducts consultation fee from user balance"""
+    session = Database().session
+    try:
+        user = session.query(User).filter(User.id == user_id).first()
+        if not user or user.balance < amount:
+            return False
+        
+        user.balance = float(user.balance) - amount
+        session.commit()
+        return True
+    except Exception as e:
+        session.rollback()
+        print(f"Error deducting consultation fee: {str(e)}")
+        return False
+    finally:
+        session.close()
+
+def refund_consultation_fee(user_id: int, amount: float) -> bool:
+    """Refunds consultation fee to user balance"""
+    session = Database().session
+    try:
+        user = session.query(User).filter(User.id == user_id).first()
+        if not user:
+            return False
+        
+        user.balance = float(user.balance) + amount
+        session.commit()
+        return True
+    except Exception as e:
+        session.rollback()
+        print(f"Error refunding consultation fee: {str(e)}")
+        return False
+    finally:
+        session.close()

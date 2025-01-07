@@ -8,6 +8,7 @@ from bot.database.methods.read import get_user_by_chat_id, count_active_payments
 from bot.services.yookassa_service import YookassaService
 from bot.misc.env import settings
 from bot.keyboards.inline.balance import get_balance_keyboard, get_deposit_keyboard
+from bot.keyboards.inline.menu import get_back_to_menu_keyboard
 
 router = Router()
 
@@ -15,13 +16,22 @@ class DepositStates(StatesGroup):
     waiting_for_amount = State()
 
 @router.message(Command("balance"))
-async def show_balance(message: Message):
+async def show_balance(message: Message, edit: bool = False):
     user = get_user_by_chat_id(message.chat.id)
     
     text = (f"💰 Ваш текущий баланс: {user.balance} {settings.CURRENCY_SYMBOL}\n"
             f"Валюта баланса: {user.currency}")
     
-    await message.answer(text, reply_markup=get_balance_keyboard())
+    keyboard = get_balance_keyboard()
+    menu_keyboard = get_back_to_menu_keyboard()
+    keyboard.inline_keyboard.extend(menu_keyboard.inline_keyboard)
+    
+    if edit:
+        await message.edit_text(text, reply_markup=keyboard)
+    else:
+        await message.answer(text, reply_markup=keyboard)
+    
+    return user
 
 @router.callback_query(F.data == "deposit_balance")
 async def deposit_balance(callback: CallbackQuery):

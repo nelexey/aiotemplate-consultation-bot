@@ -24,7 +24,12 @@ async def create_slots_keyboard(slots: List[TimeSlot], page: int = 1) -> InlineK
     if page < total_pages:
         nav_row.append(InlineKeyboardButton(text="▶️", callback_data=f"page_{page+1}"))
     
-    keyboard = slot_buttons + ([nav_row] if nav_row else [])
+    back_to_menu_row = [InlineKeyboardButton(text="◀️ Вернуться в меню", callback_data="back_to_menu")]
+    
+    keyboard = slot_buttons
+    if nav_row:
+        keyboard.append(nav_row)
+    keyboard.append(back_to_menu_row)
     
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -33,7 +38,7 @@ async def create_confirm_keyboard(slot_id: int) -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(text="✅ Подтвердить", callback_data=f"confirm_{slot_id}"),
             InlineKeyboardButton(text="❌ Отменить", callback_data=f"cancel_{slot_id}")
-        ]
+        ],
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -62,7 +67,13 @@ async def create_bookings_keyboard(bookings: List[TimeSlot], page: int = 1) -> I
     if page < total_pages:
         nav_row.append(InlineKeyboardButton(text="▶️", callback_data=f"bookings_page_{page+1}"))
     
-    keyboard = booking_buttons + ([nav_row] if nav_row else [])
+    back_to_menu_row = [InlineKeyboardButton(text="◀️ Вернуться в меню", callback_data="back_to_menu")]
+    
+    keyboard = booking_buttons
+    if nav_row:
+        keyboard.append(nav_row)
+    keyboard.append(back_to_menu_row)
+    
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 async def create_booking_details_keyboard(booking_id: int) -> InlineKeyboardMarkup:
@@ -70,5 +81,18 @@ async def create_booking_details_keyboard(booking_id: int) -> InlineKeyboardMark
         [InlineKeyboardButton(text="✍️ Написать админу", callback_data=f"write_admin_{booking_id}")],
         [InlineKeyboardButton(text="❌ Отменить бронь", callback_data=f"cancel_booking_{booking_id}")],
         [InlineKeyboardButton(text="◀️ Назад к списку", callback_data="back_to_bookings")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_no_bookings_keyboard() -> InlineKeyboardMarkup:
+    keyboard = [
+        [InlineKeyboardButton(text="📅 Записаться на консультацию", callback_data="menu_schedule")],
+        [InlineKeyboardButton(text="◀️ Вернуться в меню", callback_data="back_to_menu")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_success_booking_keyboard() -> InlineKeyboardMarkup:
+    keyboard = [
+        [InlineKeyboardButton(text="◀️ Вернуться в меню", callback_data="back_to_menu")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)

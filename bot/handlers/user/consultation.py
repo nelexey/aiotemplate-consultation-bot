@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from datetime import datetime, timedelta
@@ -7,7 +7,15 @@ from datetime import datetime, timedelta
 from bot.database.methods.read import get_available_slots, get_slot_by_id, get_user_bookings, check_user_booking_limit
 from bot.database.methods.update import book_slot, cancel_booking, release_slot
 from bot.database.methods.read import get_user_by_chat_id
-from bot.keyboards.inline.consultation import create_slots_keyboard, create_confirm_keyboard, create_bookings_keyboard, create_booking_details_keyboard
+from bot.keyboards.inline.consultation import (
+    create_slots_keyboard,
+    create_confirm_keyboard,
+    create_bookings_keyboard,
+    create_booking_details_keyboard,
+    get_no_bookings_keyboard,
+    get_success_booking_keyboard
+)
+from bot.keyboards.inline.menu import get_back_to_menu_keyboard
 from bot.misc.env import settings
 from bot.middlewares.throttling import AdminMessageThrottlingMiddleware
 from bot.states.consultation import ConsultationStates
@@ -17,17 +25,26 @@ consultation_router = Router()
 consultation_router.message.middleware(AdminMessageThrottlingMiddleware(cooldown_minutes=30))
 
 @consultation_router.message(Command("schedule"))
-async def show_schedule(message: Message):
+async def show_schedule(message: Message, edit: bool = False):
     from_date = datetime.now()
     to_date = from_date + timedelta(days=14)
     
     available_slots = get_available_slots(from_date, to_date)
     if not available_slots:
-        await message.answer("К сожалению, нет доступных слотов для записи.")
+        text = "К сожалению, нет доступных слотов для записи."
+        if edit:
+            await message.edit_text(text)
+        else:
+            await message.answer(text)
         return
     
     keyboard = await create_slots_keyboard(available_slots, page=1)
-    await message.answer("Выберите удобное время для консультации:", reply_markup=keyboard)
+    
+    text = "Выберите удобное время для консультации:"
+    if edit:
+        await message.edit_text(text, reply_markup=keyboard)
+    else:
+        await message.answer(text, reply_markup=keyboard)
 
 @consultation_router.callback_query(F.data.startswith("book_"))
 async def process_booking(callback: CallbackQuery):
@@ -57,7 +74,11 @@ async def confirm_booking(callback: CallbackQuery):
         slot = get_slot_by_id(slot_id)
         time_until = slot.datetime - datetime.now()
         
-        await callback.message.edit_text("✅ Вы успешно записались на консультацию!")
+        keyboard = get_success_booking_keyboard()
+        await callback.message.edit_text(
+            "✅ Вы успешно записались на консультацию!",
+            reply_markup=keyboard
+        )
         
         if time_until <= timedelta(hours=1):
             minutes_left = int(time_until.total_seconds() / 60)
@@ -66,30 +87,39 @@ async def confirm_booking(callback: CallbackQuery):
                 f"в {slot.datetime.strftime('%H:%M')}!"
             )
     else:
-        await callback.message.edit_text("❌ Извините, этот слот уже занят.") 
+        await callback.message.edit_text("❌ Извините, этот слот уже занят.")
 
 @consultation_router.message(Command("my_bookings"))
-async def show_my_bookings(message: Message):
-    user = get_user_by_chat_id(message.from_user.id)
+async def show_my_bookings(message: Message, edit: bool = False):
+    user = get_user_by_chat_id(message.chat.id)
     if not user:
-        await message.answer("❌ Произошла ошибка. Попробуйте начать сначала с /start")
+        text = "❌ Произошла ошибка. Попробуйте начать сначала с /start"
+        if edit:
+            await message.edit_text(text)
+        else:
+            await message.answer(text)
         return
         
     bookings = get_user_bookings(user.id)
     active_bookings = len(bookings)
     
     if not bookings:
-        await message.answer(
-            f"У вас нет предстоящих консультаций.\n"
-            f"Доступно записей: {settings.BOOKING_LIMIT}"
-        )
+        text = (f"У вас нет предстоящих консультаций.\n"
+                f"Доступно записей: {settings.BOOKING_LIMIT}")
+        keyboard = get_no_bookings_keyboard()
+        if edit:
+            await message.edit_text(text, reply_markup=keyboard)
+        else:
+            await message.answer(text, reply_markup=keyboard)
         return
     
     keyboard = await create_bookings_keyboard(bookings, page=1)
-    await message.answer(
-        f"📅 Ваши предстоящие консультации ({active_bookings}/{settings.BOOKING_LIMIT}):",
-        reply_markup=keyboard
-    )
+    
+    text = f"📅 Ваши предстоящие консультации ({active_bookings}/{settings.BOOKING_LIMIT}):"
+    if edit:
+        await message.edit_text(text, reply_markup=keyboard)
+    else:
+        await message.answer(text, reply_markup=keyboard)
 
 @consultation_router.callback_query(F.data.startswith("booking_details_"))
 async def show_booking_details(callback: CallbackQuery):
